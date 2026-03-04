@@ -27,43 +27,26 @@
 ## АРХИТЕКТУРА СИСТЕМЫ
 
 graph TD
-    subgraph "Источник данных"
-        A[FTP<br/>Выгрузки CSV]
+    subgraph "Внешний сервер (SMB)"
+        A[Сетевая шара: //<IP>/airflow]
     end
 
-    subgraph "Оркестрация"
-        B[Airflow Orchestrator]
+    subgraph "Ваш сервер (Linux)"
+        B[systemd демон]
+        C[Файл юнита: smb-airflow.mount]
+        D[Точка монтирования: /smb/airflow]
+        E[Docker контейнеры Airflow]
     end
 
-    subgraph "Обработка"
-        C[Docker Validator]
-        D[Dadata API<br/>enrichment]
-    end
+    B -- "1. Читает конфиг" --> C
+    C -- "2. Содержит параметры: (IP, логин, пароль, тип cifs)" --> B
+    B -- "3. Монтирует после network-online" --> A
+    A -- "4. Удаленная шара становится доступна" --> D
+    E -- "5. Читают/пишут данные в локальную папку" --> D
 
-    subgraph "Хранилище"
-        E[PostgreSQL<br/>DWH Storage]
-    end
-
-    subgraph "Мониторинг"
-        F[Telegram Notifications]
-    end
-
-    A -- "CSV файлы" --> B
-    B -- "Запускает валидацию" --> C
-    B -- "Обогащает данные" --> D
-    C -- "Результат валидации" --> B
-    D -- "Обогащенные данные" --> B
-    B -- "Сохраняет данные" --> E
-    B -- "Уведомления об ошибках" --> F
-    
-    C -- "✅ Valid / ❌ Errors" --> B
-    
     style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#ff9,stroke:#333,stroke-width:3px
-    style C fill:#cfc,stroke:#333,stroke-width:2px
-    style D fill:#cfc,stroke:#333,stroke-width:2px
-    style E fill:#9cf,stroke:#333,stroke-width:2px
-    style F fill:#fc9,stroke:#333,stroke-width:2px
+    style D fill:#ccf,stroke:#333,stroke-width:2px
+    style E fill:#cfc,stroke:#333,stroke-width:2px
 
 
 ---
@@ -71,8 +54,8 @@ graph TD
 
 | Проект | Описание | Ссылка |
 |--------|----------|--------|
-| etl_toolbox | ETL Toolbox для валидации данных | github.com/khomenkoalx/etl-toolbox |
-| airflow_pharma_orchestration | ORCHESTRATION (этот репозиторий) | github.com/ahomenko/airflow-pharma-orchestration |
+| etl_toolbox | ETL Toolbox для валидации данных | [ETL-TOOLBOX](github.com/khomenkoalx/etl-toolbox) |
+| airflow_pharma_orchestration | ORCHESTRATION (этот репозиторий) | [AIRFLOW-PHARMA-ORCHESTRATION](github.com/ahomenko/airflow-pharma-orchestration) |
 
 ---
 
@@ -148,29 +131,30 @@ TimeoutSec=30
 WantedBy=multi-user.target
 ```
 
-Обновите демона:  
+Обновление демона:  
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now smb-airflow.mount
 sudo systemctl status smb-airflow.mount
 ```
 
-Проверьте:
+Проверка:
 ```bash
 ls -la /smb/airflow
 ```
 
 #### ИЗМЕНЕНИЕ ПРАВ DOCKER-SOCKET
 
-Разрешите доступ контейнерам к Docker Daemon:
 ```bash
 sudo chmod a+rw /var/run/docker.sock
 ```
 
 ### 2. КЛОНИРОВАНИЕ И ПОДГОТОВКА  
 
+```bash
 git clone https://github.com/khomenkoalx/airflow_pharma_orchestration
 cd airflow_pharma_orchestration
+```
 
 #### Создание виртуального окружения (опционально)
 ```bash
@@ -186,7 +170,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Отредактируйте следующие ключевые значения:
+Отредактируйте следующие переменные:
 ```plain
 AIRFLOW_IMAGE_NAME=apache/airflow:2.8.4-python3.11
 AIRFLOW_UID=1000
@@ -205,11 +189,10 @@ AIRFLOW__CORE__LOAD_EXAMPLES=False
 ---
 ## НАСТРОЙКА CONNECTIONS И VARIABLES В AIRFLOW UI
 
-ВНИМАНИЕ! Все подключения к внешним системам должны создаваться ТОЛЬКО через Web-интерфейс Airflow
 
 ### Шаг 1: Откройте интерфейс
 
-http://localhost:8080 ИЛИ IP вашего сервера
+http://localhost:8080 ИЛИ IP вашего сервера  
 Логин: admin  
 Пароль: admin_password (или из переменной .env)  
 
@@ -286,10 +269,10 @@ docker compose -f docker-compose.local.yml up -d
 - Удобен для тестирования DAG без полной инфраструктуры
 
 ---
-ОПИСАНИЕ DAG (PIPELINES)
+## ОПИСАНИЕ DAG (PIPELINES)
 
 ------------------------------------------------------------------------------
-## main_pharmacy_data_pipeline — Главный пайплайн загрузки данных
+### main_pharmacy_data_pipeline — Главный пайплайн загрузки данных
 
 **Расписание:** Ежедневно в 01:15 UTC (`15 1 */1 * *`)
 
@@ -299,7 +282,6 @@ docker compose -f docker-compose.local.yml up -d
 
 ### Схема выполнения (Mermaid)
 
-```mermaid
 graph TD
     subgraph "1. Сбор и фильтрация"
         A[get_ftp_file_list] --> B[fetch_file_names_and_mdtd]
@@ -307,26 +289,33 @@ graph TD
     end
 
     subgraph "2. Загрузка и валидация"
-        C --> D[download_single_file_task]
-        D --> E[validate]
+        D[download_single_file_task] --> E[validate]
     end
 
     subgraph "3. Обработка результатов"
-        E --> F{Валидация пройдена?}
-        F -->|Да| G[list_files_in_validated]
-        F -->|Нет| H[not_validated_notification]
+        F{Валидация пройдена?}
+        G[list_files_in_validated]
+        H[not_validated_notification]
     end
 
     subgraph "4. Загрузка в БД"
-        G --> I[load_csv_to_postgres]
-        I --> J[update_tables_in_db]
+        I[load_csv_to_postgres] --> J[update_tables_in_db]
     end
 
     subgraph "5. Уведомления"
-        J --> K[processed_files_notification]
-        H --> L[Конец]
-        K --> L
+        K[processed_files_notification]
+        L[Конец]
     end
+
+    %% Правильные соединения между подграфами (через узлы)
+    C --> D
+    E --> F
+    F -->|Да| G
+    F -->|Нет| H
+    G --> I
+    J --> K
+    H --> L
+    K --> L
 
     style A fill:#e1f5fe
     style B fill:#e1f5fe
@@ -339,7 +328,7 @@ graph TD
     style I fill:#c8e6c9
     style J fill:#c8e6c9
     style K fill:#bbdefb
-```
+
 
 | № | Задача ID | Описание |
 |---|-----------|----------|
@@ -394,22 +383,6 @@ graph TD
 
 Валидация выполняется через внешний Docker-контейнер etl-toolbox:latest
 
-Модификация:
-
-```python
-mount_point: {
-    'source': '/smb/airflow/facts_data',
-    'target': '/app/data',
-    'type': 'bind'
-}
-
-environment: {
-    'DADATA_TOKEN': Variable.get('DADATA_TOKEN'),
-    'DADATA_SECRET': Variable.get('DADATA_SECRET'),
-    'DB_CONNECTION_STRING_SECRET': Variable.get('DB_CONNECTION_STRING_SECRET'),
-    ...
-}
-```
 
 ---
 ### МАРШРУТИЗАЦИЯ ДАННЫХ (FILE -> TABLE)
