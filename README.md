@@ -55,8 +55,8 @@ graph TD
 
 | Проект | Описание | Ссылка |
 |--------|----------|--------|
-| etl_toolbox | ETL Toolbox для валидации данных | [ETL-TOOLBOX](github.com/khomenkoalx/etl-toolbox) |
-| airflow_pharma_orchestration | ORCHESTRATION (этот репозиторий) | [AIRFLOW-PHARMA-ORCHESTRATION](github.com/ahomenko/airflow-pharma-orchestration) |
+| etl_toolbox | ETL Toolbox для валидации данных | [ETL-TOOLBOX](https://github.com/khomenkoalx/etl-toolbox) |
+| airflow_pharma_orchestration | ORCHESTRATION (этот репозиторий) | [AIRFLOW-PHARMA-ORCHESTRATION](https://github.com/ahomenko/airflow-pharma-orchestration) |
 
 ---
 
