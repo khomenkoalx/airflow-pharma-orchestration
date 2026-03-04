@@ -1,0 +1,11 @@
+apache-airflow-providers-postgres
+apache-airflow-providers-redis
+apache-airflow-providers-http
+apache-airflow-providers-telegram==4.6.0
+
+# Библиотеки для работы с данными
+pandas==2.1.4
+
+# Инструменты разработки
+black
+airflow-code-editor

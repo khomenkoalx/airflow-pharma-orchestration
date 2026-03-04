@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  airflow-local:
+    build:
+      context: .
+      args:
+        AIRFLOW_IMAGE_NAME: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.8.4}
+    user: "1000:0"
+    # Для локальной разработки можно прописать переменные прямо тут или в .env.local
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE=UTC
+      - AIRFLOW__CORE__DEFAULT_TIMEZONE=UTC
+      - TZ=UTC
+      # Автоматическое создание админа при запуске standalone
+      - _AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_ADMIN_USER:-admin}
+      - _AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      # Важно пробросить саму БД, чтобы она не стиралась при рестарте контейнера
+      - ./airflow/local_db:/opt/airflow/db_data
+    ports:
+      - "8081:8080" # Порт 8081, чтобы не конфликтовать с продом, если он запущен
+    command: >
+      bash -c "airflow db init && 
+               airflow users create --username admin --firstname admin --lastname admin --role Admin --email admin@example.com --password admin || true &&
+               airflow standalone"
