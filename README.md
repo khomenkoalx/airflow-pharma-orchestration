@@ -26,9 +26,10 @@
 ---
 ## АРХИТЕКТУРА СИСТЕМЫ
 
+```mermaid
 graph TD
     subgraph "Внешний сервер (SMB)"
-        A[Сетевая шара: //<IP>/airflow]
+        A[Сетевая шара: //&lt;IP&gt;/airflow]
     end
 
     subgraph "Ваш сервер (Linux)"
@@ -38,16 +39,16 @@ graph TD
         E[Docker контейнеры Airflow]
     end
 
-    B -- "1. Читает конфиг" --> C
-    C -- "2. Содержит параметры: (IP, логин, пароль, тип cifs)" --> B
-    B -- "3. Монтирует после network-online" --> A
-    A -- "4. Удаленная шара становится доступна" --> D
-    E -- "5. Читают/пишут данные в локальную папку" --> D
+    B -->|1. Читает конфиг| C
+    C -->|2. Содержит параметры: IP, логин, пароль, тип cifs| B
+    B -->|3. Монтирует после network-online| A
+    A -->|4. Удаленная шара становится доступна| D
+    E -->|5. Читают/пишут данные в локальную папку| D
 
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style D fill:#ccf,stroke:#333,stroke-width:2px
     style E fill:#cfc,stroke:#333,stroke-width:2px
-
+```
 
 ---
 ## СМЕЖНЫЕ РЕПОЗИТОРИИ
@@ -257,7 +258,7 @@ docker compose -f docker-compose.prod.yml up -d
 - PostgreSQL
 - Redis
 
-### 3. ЛОКАЛЬНАЯ РАЗРАБОТКА (Single Executor, быстрая итерация)
+### 3. ЛОКАЛЬНАЯ РАЗРАБОТКА (SequentialExecutor, облегченная версия)
 ```bash
 docker compose -f docker-compose.local.yml up -d
 ```
@@ -280,8 +281,9 @@ docker compose -f docker-compose.local.yml up -d
 
 ---
 
-### Схема выполнения (Mermaid)
+### Схема выполнения
 
+```mermaid
 graph TD
     subgraph "1. Сбор и фильтрация"
         A[get_ftp_file_list] --> B[fetch_file_names_and_mdtd]
@@ -328,7 +330,7 @@ graph TD
     style I fill:#c8e6c9
     style J fill:#c8e6c9
     style K fill:#bbdefb
-
+```
 
 | № | Задача ID | Описание |
 |---|-----------|----------|
